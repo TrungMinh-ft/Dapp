@@ -99,4 +99,9 @@ Swagger docs:
 ## Ghi chú
 
 - `POST /elections/:id/sync` hiện sync cả election record, vote events và whitelist.
+- Trang lịch sử vote ở frontend đọc từ dữ liệu `voteEvents` đã được backend sync vào database, không đọc trực tiếp từ chain.
+- Nếu muốn lịch sử vote và whitelist tự cập nhật sau khi có giao dịch mới, bật:
+  - `SYNC_ON_STARTUP=true`
+  - `ENABLE_AUTO_SYNC=true`
+  - `ENABLE_CHAIN_LISTENERS=true`
 - Cơ chế chống replay cho admin signed request hiện dùng nonce cache trong memory; đủ cho một backend instance đơn. Nếu scale nhiều instance, nên chuyển nonce store sang Redis hoặc DB dùng chung.
