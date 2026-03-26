@@ -8,7 +8,8 @@
     "start:dev": "nest start --watch",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "sync": "ts-node src/jobs/sync.job.ts"
+    "sync": "ts-node src/jobs/sync.job.ts",
+    "test": "ts-node --transpile-only test/admin-token.guard.smoke.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.2",

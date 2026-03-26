@@ -6,9 +6,10 @@ import {
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
-import { VotesService } from "./votes.service";
-import { VotingStatusResponseDto } from "./dto/voting-status-response.dto";
+import { WalletAddressPipe } from "../../common/pipes/wallet-address.pipe";
 import { VoteEventResponseDto } from "./dto/vote-event-response.dto";
+import { VotingStatusResponseDto } from "./dto/voting-status-response.dto";
+import { VotesService } from "./votes.service";
 
 @ApiTags("Votes")
 @Controller("votes")
@@ -16,7 +17,7 @@ export class VotesController {
   constructor(private readonly votesService: VotesService) {}
 
   @Get(":electionId/status")
-  @ApiOperation({ summary: "Kiểm tra trạng thái bỏ phiếu của một ví" })
+  @ApiOperation({ summary: "Kiem tra trang thai bo phieu cua mot vi" })
   @ApiParam({
     name: "electionId",
     example: 0,
@@ -25,25 +26,37 @@ export class VotesController {
   @ApiQuery({
     name: "wallet",
     example: "0x1234567890abcdef1234567890abcdef12345678",
-    description: "Địa chỉ ví cần kiểm tra",
+    description: "Dia chi vi can kiem tra",
   })
   @ApiOkResponse({ type: VotingStatusResponseDto })
   async getVotingStatus(
     @Param("electionId", ParseIntPipe) electionId: number,
-    @Query("wallet") wallet: string,
+    @Query("wallet", WalletAddressPipe) wallet: string,
   ) {
     return this.votesService.getVotingStatus(electionId, wallet);
   }
 
   @Get(":electionId/events")
-  @ApiOperation({ summary: "Lấy danh sách vote events đã sync" })
+  @ApiOperation({ summary: "Lay danh sach vote events da sync" })
   @ApiParam({
     name: "electionId",
     example: 0,
     description: "Contract election id",
   })
+  @ApiQuery({
+    name: "wallet",
+    required: false,
+    example: "0x1234567890abcdef1234567890abcdef12345678",
+    description: "Neu co, chi tra ve vote events cua vi nay",
+  })
   @ApiOkResponse({ type: [VoteEventResponseDto] })
-  async getVoteEvents(@Param("electionId", ParseIntPipe) electionId: number) {
-    return this.votesService.getVoteEvents(electionId);
+  async getVoteEvents(
+    @Param("electionId", ParseIntPipe) electionId: number,
+    @Query("wallet") wallet?: string,
+  ) {
+    return this.votesService.getVoteEvents(
+      electionId,
+      wallet ? new WalletAddressPipe().transform(wallet) : undefined,
+    );
   }
 }

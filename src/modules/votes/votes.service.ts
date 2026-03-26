@@ -18,10 +18,17 @@ export class VotesService {
     return { electionId, wallet, hasVoted, isAuthorized };
   }
 
-  async getVoteEvents(electionId: number) {
+  async getVoteEvents(electionId: number, wallet?: string) {
     const election = await this.prisma.election.findUnique({
       where: { contractElectionId: electionId },
-      include: { voteEvents: true },
+      include: {
+        voteEvents: {
+          where: wallet
+            ? { voter: { equals: wallet, mode: "insensitive" } }
+            : undefined,
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     return election?.voteEvents || [];
