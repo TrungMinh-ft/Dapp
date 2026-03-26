@@ -23,6 +23,7 @@ export class AdminTokenGuard implements CanActivate {
     string,
     { count: number; windowStartedAt: number }
   >();
+  private static readonly usedNonces = new Map<string, number>();
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AdminRequest>();
@@ -61,9 +62,10 @@ export class AdminTokenGuard implements CanActivate {
 
     const address = request.headers["x-admin-address"]?.toLowerCase();
     const timestampValue = request.headers["x-admin-timestamp"];
+    const nonce = request.headers["x-admin-nonce"];
     const signature = request.headers["x-admin-signature"];
 
-    if (!address || !timestampValue || !signature) {
+    if (!address || !timestampValue || !nonce || !signature) {
       return false;
     }
 
@@ -81,6 +83,10 @@ export class AdminTokenGuard implements CanActivate {
       return false;
     }
 
+    if (!this.claimNonce(address, nonce, timestamp, now)) {
+      return false;
+    }
+
     const path = (request.originalUrl || request.url || "").split("?")[0] || "/";
     const method = (request.method || "GET").toUpperCase();
     const message =
@@ -88,9 +94,36 @@ export class AdminTokenGuard implements CanActivate {
       `address:${address}\n` +
       `method:${method}\n` +
       `path:${path}\n` +
-      `timestamp:${timestamp}`;
+      `timestamp:${timestamp}\n` +
+      `nonce:${nonce}`;
 
     return verifyMessage(message, signature).toLowerCase() === address;
+  }
+
+  private claimNonce(
+    address: string,
+    nonce: string,
+    timestamp: number,
+    now: number,
+  ) {
+    this.pruneExpiredNonces(now);
+
+    const key = `${address}:${nonce}`;
+    if (AdminTokenGuard.usedNonces.has(key)) {
+      return false;
+    }
+
+    const expiresAt = timestamp + env.adminAuthMaxSkewSeconds;
+    AdminTokenGuard.usedNonces.set(key, expiresAt);
+    return true;
+  }
+
+  private pruneExpiredNonces(now: number) {
+    for (const [key, expiresAt] of AdminTokenGuard.usedNonces.entries()) {
+      if (expiresAt < now) {
+        AdminTokenGuard.usedNonces.delete(key);
+      }
+    }
   }
 
   private assertRateLimit(ip?: string) {

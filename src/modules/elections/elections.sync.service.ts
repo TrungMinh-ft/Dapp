@@ -53,7 +53,7 @@ export class ElectionsSyncService implements OnModuleInit {
     this.syncAllPromise = (async () => {
       const count = await this.blockchainService.getElectionCount();
       for (let electionId = 0; electionId < count; electionId++) {
-        await this.syncElection(electionId);
+        await this.syncElectionEvents(electionId);
       }
     })();
 
@@ -98,16 +98,23 @@ export class ElectionsSyncService implements OnModuleInit {
   private async syncElectionRecord(contractElectionId: number) {
     const election =
       await this.blockchainService.getElection(contractElectionId);
+    const now = Math.floor(Date.now() / 1000);
+    const isFinished =
+      election.isClosed || Number(election.endTime) <= now;
 
     let results: number[] = [];
-    try {
-      results = await this.blockchainService.getResults(contractElectionId);
-    } catch (error) {
-      if (!this.isResultUnavailableError(error)) {
-        throw error;
-      }
-
+    if (!isFinished) {
       results = new Array(election.candidates.length).fill(0);
+    } else {
+      try {
+        results = await this.blockchainService.getResults(contractElectionId);
+      } catch (error) {
+        if (!this.isResultUnavailableError(error)) {
+          throw error;
+        }
+
+        results = new Array(election.candidates.length).fill(0);
+      }
     }
 
     const totalVotes = results.reduce((sum, item) => sum + item, 0);
@@ -123,7 +130,7 @@ export class ElectionsSyncService implements OnModuleInit {
     })) as any;
 
     const resultSummary = this.calculateResultSummary(
-      election.isClosed || Number(election.endTime) <= Math.floor(Date.now() / 1000),
+      isFinished,
       election.candidates,
       results,
     );

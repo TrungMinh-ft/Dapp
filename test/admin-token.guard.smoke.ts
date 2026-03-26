@@ -44,12 +44,14 @@ async function main() {
   const timestamp = Math.floor(Date.now() / 1000);
   const path = "/elections/1/sync";
   const method = "POST";
+  const nonce = "smoke-test-nonce";
   const message =
     `PrivateVoting admin request\n` +
     `address:${adminWallet.address.toLowerCase()}\n` +
     `method:${method}\n` +
     `path:${path}\n` +
-    `timestamp:${timestamp}`;
+    `timestamp:${timestamp}\n` +
+    `nonce:${nonce}`;
   const signature = await adminWallet.signMessage(message);
 
   const walletGuard = new AdminTokenGuard();
@@ -59,6 +61,7 @@ async function main() {
         headers: {
           "x-admin-address": adminWallet.address.toLowerCase(),
           "x-admin-timestamp": String(timestamp),
+          "x-admin-nonce": nonce,
           "x-admin-signature": signature,
         },
         method,
