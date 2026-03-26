@@ -1,6 +1,15 @@
 {
   "name": "LTDapp",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=20 <23"
+  },
+  "scripts": {
+    "test": "hardhat test",
+    "test:node20": ".\\run-tests-node20.cmd",
+    "clean": "hardhat clean",
+    "check:node": "node -e \"const major=Number(process.versions.node.split('.')[0]); if (![20,22].includes(major)) { console.error('Unsupported Node.js '+process.versions.node+'. Use Node 20 LTS or 22 LTS.'); process.exit(1); } console.log('Node.js OK:', process.versions.node);\""
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",
     "@nomicfoundation/hardhat-ethers": "^3.1.3",

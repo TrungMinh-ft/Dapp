@@ -1,13 +1,29 @@
-# Sample Hardhat Project
+# PrivateVoting Smart Contracts
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+Hop dong thong minh cho he thong bo phieu kin tren Oasis Sapphire.
 
-Try running some of the following tasks:
+## Thanh phan chinh
+- `contracts/PrivateVoting.sol`: contract bo phieu.
+- `scripts/deploy.ts`: deploy contract `PrivateVoting`.
+- `scripts/createElection.ts`: tao election.
+- `scripts/createFinishedElection.ts`: tao election da ket thuc de demo ket qua.
+- `scripts/closeElection.ts`: dong election.
+- `scripts/voteElection.ts`: gui giao dich vote.
+
+## Chay test
+
+Neu may dang dung Node 20/22:
 
 ```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
+npm test
 ```
+
+Neu can dung Node 20 portable trong repo:
+
+```shell
+.\run-tests-node20.cmd
+```
+
+## Luu y
+- Network Sapphire testnet duoc cau hinh trong `hardhat.config.ts`.
+- Dat `PRIVATE_KEY` trong `.env` truoc khi deploy hoac chay script can signer.
