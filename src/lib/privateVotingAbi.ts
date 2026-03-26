@@ -1,0 +1,65 @@
+export const privateVotingAbi = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "uint256", name: "electionId", type: "uint256" },
+      { indexed: true, internalType: "address", name: "creator", type: "address" },
+      { indexed: false, internalType: "string", name: "title", type: "string" },
+      { indexed: false, internalType: "uint256", name: "startTime", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "endTime", type: "uint256" },
+      { indexed: false, internalType: "bool", name: "isPublic", type: "bool" },
+    ],
+    name: "ElectionCreated",
+    type: "event",
+  },
+  {
+    inputs: [
+      { internalType: "string", name: "title", type: "string" },
+      { internalType: "string[]", name: "candidates", type: "string[]" },
+      { internalType: "uint256", name: "startTime", type: "uint256" },
+      { internalType: "uint256", name: "endTime", type: "uint256" },
+      { internalType: "bool", name: "isPublic", type: "bool" },
+    ],
+    name: "createElection",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "electionId", type: "uint256" },
+      { internalType: "address[]", name: "voters", type: "address[]" },
+    ],
+    name: "authorizeManyVoters",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "electionId", type: "uint256" },
+      { internalType: "address", name: "voter", type: "address" },
+    ],
+    name: "revokeVoter",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "electionId", type: "uint256" }],
+    name: "closeElection",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "uint256", name: "electionId", type: "uint256" },
+      { internalType: "uint256", name: "candidateIndex", type: "uint256" },
+    ],
+    name: "vote",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
