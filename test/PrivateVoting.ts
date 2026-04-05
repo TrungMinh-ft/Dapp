@@ -77,6 +77,7 @@ describe("PrivateVoting", function () {
       "ElectionStillActive",
     );
 
+    await time.increase(3601);
     await voting.closeElection(electionId);
     expect(await voting.getResults(electionId)).to.deep.equal([0n, 1n]);
   });
@@ -101,6 +102,15 @@ describe("PrivateVoting", function () {
     await expect(voting.connect(other).closeElection(electionId)).to.be.revertedWithCustomError(
       voting,
       "NotElectionCreator",
+    );
+  });
+
+  it("does not allow closing an election before the end time", async function () {
+    const { voting, electionId } = await loadFixture(createPublicElectionFixture);
+
+    await expect(voting.closeElection(electionId)).to.be.revertedWithCustomError(
+      voting,
+      "ElectionEndTimeNotReached",
     );
   });
 

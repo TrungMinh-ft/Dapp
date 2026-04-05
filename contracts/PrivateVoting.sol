@@ -60,6 +60,7 @@ contract PrivateVoting {
     error AlreadyVoted();
     error InvalidCandidateIndex();
     error ElectionStillActive();
+    error ElectionEndTimeNotReached();
 
     modifier electionExists(uint256 electionId) {
         if (electionId >= _nextElectionId) {
@@ -208,6 +209,10 @@ contract PrivateVoting {
 
         if (e.isClosed) {
             revert ElectionAlreadyClosed();
+        }
+
+        if (block.timestamp < e.endTime) {
+            revert ElectionEndTimeNotReached();
         }
 
         e.isClosed = true;
