@@ -7,9 +7,9 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const nodeMajorVersion = Number(process.versions.node.split(".")[0]);
-if (![20, 22].includes(nodeMajorVersion)) {
+if (![20, 22, 24].includes(nodeMajorVersion)) {
   throw new Error(
-    `Unsupported Node.js ${process.versions.node}. Use Node 20 LTS or 22 LTS for Hardhat in this project.`,
+    `Unsupported Node.js ${process.versions.node}. Use Node 20 LTS, 22 LTS, or 24 LTS for Hardhat in this project.`,
   );
 }
 

@@ -14,7 +14,7 @@ Phần smart contract của Private Voting DApp, dùng Hardhat và deploy lên O
 
 ## Yêu cầu
 
-- Node.js 20 hoặc 22
+- Node.js 20, 22 hoặc 24
 - Hoặc dùng Node 20 portable đi kèm trong repo qua các script `.cmd`
 
 ## Cấu hình
@@ -27,7 +27,7 @@ Network Sapphire testnet được cấu hình sẵn trong `hardhat.config.ts`.
 
 ## Chạy test
 
-Nếu máy đã có Node 20/22:
+Nếu máy đã có Node 20/22/24:
 
 ```bash
 npm test
