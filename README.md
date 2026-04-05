@@ -1,19 +1,21 @@
 # Backend
 
-Backend cho Private Voting DApp, built với NestJS, Prisma và PostgreSQL.
+Backend cho Private Voting DApp, xay dung bang NestJS, Prisma va PostgreSQL.
 
-## Mục đích
-- Đồng bộ dữ liệu election từ smart contract trên Oasis Sapphire.
-- Lưu vote events, whitelist và metadata off-chain để frontend đọc nhanh.
-- Cung cấp REST API cho danh sách election, chi tiết election, vote status và admin operations.
+## Muc dich
 
-## Công nghệ
+- Dong bo du lieu election tu smart contract tren Oasis Sapphire
+- Luu vote events, whitelist va metadata off-chain de frontend doc nhanh
+- Cung cap REST API cho election, vote status va admin operations
+
+## Cong nghe
+
 - NestJS
 - Prisma
 - PostgreSQL
 - Ethers.js
 
-## Chạy local
+## Chay local
 
 ```bash
 npm install
@@ -22,45 +24,47 @@ npx prisma migrate dev
 npm run start:dev
 ```
 
-Backend mặc định chạy ở `http://localhost:3001`.
+Backend mac dinh chay o `http://localhost:3001`.
 
-## Biến môi trường
+## Bien moi truong
 
-Cấu hình trong `.env`:
+Cau hinh trong `.env`:
 
-- `PORT`: cổng backend
-- `DATABASE_URL`: chuỗi kết nối PostgreSQL
-- `OASIS_RPC_URL`: RPC endpoint của Oasis Sapphire
-- `CONTRACT_ADDRESS`: địa chỉ contract `PrivateVoting`
-- `CORS_ORIGINS`: danh sách origin được phép gọi API, phân tách bằng dấu phẩy
-- `SYNC_INTERVAL_MS`: chu kỳ auto-sync
-- `SYNC_ON_STARTUP`: sync khi khởi động
-- `ENABLE_AUTO_SYNC`: bật auto-sync nền
-- `ENABLE_CHAIN_LISTENERS`: bật listener on-chain
-- `ADMIN_WALLETS`: danh sách ví admin allowlist, phân tách bằng dấu phẩy
-- `ADMIN_TOKEN`: token legacy cho môi trường dev
-- `ALLOW_LEGACY_ADMIN_TOKEN`: cho phép dùng `ADMIN_TOKEN`
-- `ADMIN_AUTH_MAX_SKEW_SECONDS`: độ lệch thời gian tối đa cho signed admin request
-- `ADMIN_RATE_LIMIT_WINDOW_MS`: cửa sổ rate limit admin auth
-- `ADMIN_RATE_LIMIT_MAX_ATTEMPTS`: số lần auth sai tối đa trong một cửa sổ
+- `PORT`: cong backend
+- `DATABASE_URL`: chuoi ket noi PostgreSQL
+- `OASIS_RPC_URL`: RPC endpoint cua Oasis Sapphire
+- `CONTRACT_ADDRESS`: dia chi contract `PrivateVoting`
+- `CORS_ORIGINS`: danh sach origin duoc phep goi API, phan tach bang dau phay
+- `SYNC_INTERVAL_MS`: chu ky auto-sync
+- `SYNC_ON_STARTUP`: sync khi khoi dong
+- `ENABLE_AUTO_SYNC`: bat auto-sync nen
+- `ENABLE_CHAIN_LISTENERS`: bat listener on-chain
+- `ADMIN_WALLETS`: danh sach vi admin allowlist, phan tach bang dau phay
+- `ADMIN_TOKEN`: token legacy cho moi truong dev
+- `ALLOW_LEGACY_ADMIN_TOKEN`: cho phep dung `ADMIN_TOKEN`
+- `ADMIN_AUTH_MAX_SKEW_SECONDS`: do lech thoi gian toi da cho signed admin request
+- `ADMIN_RATE_LIMIT_WINDOW_MS`: cua so rate limit admin auth
+- `ADMIN_RATE_LIMIT_MAX_ATTEMPTS`: so lan auth sai toi da trong mot cua so
 
 ## Admin auth
 
-Backend hiện hỗ trợ 2 cách xác thực admin:
+Backend ho tro 2 cach xac thuc admin:
 
-1. Khuyến nghị: signed request bằng ví admin
+1. Khuyen nghi: signed request bang vi admin
 2. Legacy/dev only: `x-admin-token` khi `ALLOW_LEGACY_ADMIN_TOKEN=true`
 
-Signed request dùng các header:
+Signed request dung cac header:
+
 - `x-admin-address`
 - `x-admin-timestamp`
 - `x-admin-nonce`
 - `x-admin-signature`
 
-Khuyến nghị production:
-- Điền `ADMIN_WALLETS`
-- Đặt `ALLOW_LEGACY_ADMIN_TOKEN=false`
-- Giới hạn `CORS_ORIGINS` đúng domain frontend thật
+Khuyen nghi production:
+
+- Dien `ADMIN_WALLETS`
+- Dat `ALLOW_LEGACY_ADMIN_TOKEN=false`
+- Gioi han `CORS_ORIGINS` dung domain frontend that
 
 ## Scripts
 
@@ -72,9 +76,10 @@ Khuyến nghị production:
 - `npm run sync`
 - `npm run test`
 
-## API chính
+## API chinh
 
 Public:
+
 - `GET /health`
 - `GET /elections`
 - `GET /elections/active`
@@ -85,6 +90,7 @@ Public:
 - `GET /votes/:electionId/events`
 
 Admin:
+
 - `POST /elections/sync`
 - `POST /elections/:id/sync`
 - `POST /elections/:id/sync-events`
@@ -94,14 +100,15 @@ Admin:
 - `POST /elections/admin/logs`
 
 Swagger docs:
+
 - `GET /api`
 
-## Ghi chú
+## Ghi chu
 
-- `POST /elections/:id/sync` hiện sync cả election record, vote events và whitelist.
-- Trang lịch sử vote ở frontend đọc từ dữ liệu `voteEvents` đã được backend sync vào database, không đọc trực tiếp từ chain.
-- Nếu muốn lịch sử vote và whitelist tự cập nhật sau khi có giao dịch mới, bật:
+- `POST /elections/:id/sync` hien sync ca election record, vote events va whitelist
+- Trang lich su vote o frontend doc tu du lieu `voteEvents` da duoc backend sync vao database, khong doc truc tiep tu chain
+- Neu muon lich su vote va whitelist tu cap nhat sau khi co giao dich moi, bat:
   - `SYNC_ON_STARTUP=true`
   - `ENABLE_AUTO_SYNC=true`
   - `ENABLE_CHAIN_LISTENERS=true`
-- Cơ chế chống replay cho admin signed request hiện dùng nonce cache trong memory; đủ cho một backend instance đơn. Nếu scale nhiều instance, nên chuyển nonce store sang Redis hoặc DB dùng chung.
+- Co che chong replay cho admin signed request hien dung nonce cache trong memory; du cho mot backend instance don. Neu scale nhieu instance, nen chuyen nonce store sang Redis hoac DB dung chung.

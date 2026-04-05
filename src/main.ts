@@ -33,7 +33,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Private Voting DApp API")
-    .setDescription("API backend cho hệ thống bỏ phiếu kín trên Oasis")
+    .setDescription("API backend cho he thong bo phieu kin tren Oasis")
     .setVersion("1.0")
     .build();
 
@@ -47,9 +47,6 @@ async function bootstrap() {
 
   logger.log(`Server running at: ${baseUrl}`);
   logger.log(`Swagger docs: ${swaggerUrl}`);
-
-  console.log(`Server running at: ${baseUrl}`);
-  console.log(`Swagger docs: ${swaggerUrl}`);
 }
 
 bootstrap();

@@ -9,26 +9,29 @@ export class ElectionsService {
   constructor(private readonly prisma: PrismaService) {}
 
   private calculatePresentation(election: ElectionWithRelations) {
+    const isFinished =
+      election.isClosed || Number(election.endTime) <= Date.now() / 1000;
     const candidates = [...(election.candidates ?? [])].sort(
       (left, right) => right.voteCount - left.voteCount || left.index - right.index,
     );
-    const totalVotes = candidates.reduce(
+    const countedVotes = candidates.reduce(
       (sum, candidate) => sum + candidate.voteCount,
       0,
     );
+    const totalVotes = isFinished
+      ? countedVotes
+      : Number(election.totalVotes ?? countedVotes);
     const highestVoteCount = candidates[0]?.voteCount ?? 0;
     const leadingCandidates = candidates.filter(
       (candidate) => candidate.voteCount === highestVoteCount,
     );
-    const hasTieForLead = totalVotes > 0 && leadingCandidates.length > 1;
+    const hasTieForLead = countedVotes > 0 && leadingCandidates.length > 1;
     const leadingCandidate =
-      totalVotes === 0 || hasTieForLead ? null : (candidates[0] ?? null);
+      countedVotes === 0 || hasTieForLead ? null : (candidates[0] ?? null);
     const leadingPercentage =
-      totalVotes === 0 || !leadingCandidate
+      countedVotes === 0 || !leadingCandidate
         ? 0
         : Number(((leadingCandidate.voteCount * 100) / totalVotes).toFixed(2));
-
-    const isFinished = election.isClosed || Number(election.endTime) <= Date.now() / 1000;
     const displayStatus = isFinished
       ? election.resultSummary || "FINISHED"
       : "VOTING LIVE";

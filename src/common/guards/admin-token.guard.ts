@@ -28,6 +28,8 @@ export class AdminTokenGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<AdminRequest>();
 
+    this.assertRateLimit(request.ip);
+
     if (this.isLegacyTokenAuthorized(request)) {
       return true;
     }
@@ -57,8 +59,6 @@ export class AdminTokenGuard implements CanActivate {
     if (env.adminWallets.length === 0) {
       return false;
     }
-
-    this.assertRateLimit(request.ip);
 
     const address = request.headers["x-admin-address"]?.toLowerCase();
     const timestampValue = request.headers["x-admin-timestamp"];

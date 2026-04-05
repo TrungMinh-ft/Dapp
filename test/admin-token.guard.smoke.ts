@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { HttpException } from "@nestjs/common";
 import { Wallet } from "ethers";
 import { AdminTokenGuard } from "../src/common/guards/admin-token.guard";
 import { env } from "../src/config/env";
@@ -19,9 +20,13 @@ function makeContext(request: RequestLike) {
 }
 
 async function main() {
+  (AdminTokenGuard as any).attemptsByIp.clear();
+  (AdminTokenGuard as any).usedNonces.clear();
   env.allowLegacyAdminToken = true;
   env.adminToken = "legacy-dev-token";
   env.adminWallets.splice(0, env.adminWallets.length);
+  env.adminRateLimitWindowMs = 60_000;
+  env.adminRateLimitMaxAttempts = 1;
 
   const legacyGuard = new AdminTokenGuard();
   assert.equal(
@@ -37,9 +42,41 @@ async function main() {
     true,
   );
 
+  assert.throws(
+    () =>
+      legacyGuard.canActivate(
+        makeContext({
+          headers: {
+            "x-admin-token": "wrong-token",
+          },
+          ip: "127.0.0.1",
+          method: "POST",
+          originalUrl: "/elections/sync",
+        }),
+      ),
+  );
+
+  assert.throws(
+    () =>
+      legacyGuard.canActivate(
+        makeContext({
+          headers: {
+            "x-admin-token": "still-wrong",
+          },
+          ip: "127.0.0.1",
+          method: "POST",
+          originalUrl: "/elections/sync",
+        }),
+      ),
+    (error: unknown) =>
+      error instanceof HttpException && error.getStatus() === 429,
+  );
+
   const adminWallet = Wallet.createRandom();
   env.adminWallets.push(adminWallet.address.toLowerCase());
   env.allowLegacyAdminToken = false;
+  (AdminTokenGuard as any).attemptsByIp.clear();
+  (AdminTokenGuard as any).usedNonces.clear();
 
   const timestamp = Math.floor(Date.now() / 1000);
   const path = "/elections/1/sync";

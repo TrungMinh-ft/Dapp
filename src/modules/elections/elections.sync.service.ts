@@ -103,8 +103,10 @@ export class ElectionsSyncService implements OnModuleInit {
       election.isClosed || Number(election.endTime) <= now;
 
     let results: number[] = [];
+    let totalVotes = 0;
     if (!isFinished) {
       results = new Array(election.candidates.length).fill(0);
+      totalVotes = await this.blockchainService.getTotalVotes(contractElectionId);
     } else {
       try {
         results = await this.blockchainService.getResults(contractElectionId);
@@ -115,9 +117,9 @@ export class ElectionsSyncService implements OnModuleInit {
 
         results = new Array(election.candidates.length).fill(0);
       }
-    }
 
-    const totalVotes = results.reduce((sum, item) => sum + item, 0);
+      totalVotes = results.reduce((sum, item) => sum + item, 0);
+    }
     const privacyLevel = election.isPublic ? "PUBLIC" : "ENCRYPTED";
 
     const existingElection = (await this.prisma.election.findUnique({
