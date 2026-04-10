@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Election {
+  id                 Int         @id @default(autoincrement())
+  contractElectionId Int         @unique
+  proposalCode       String      @default("")
+  title              String
+  description        String      @default("")
+  startTime          BigInt
+  endTime            BigInt
+  isPublic           Boolean
+  isClosed           Boolean
+  privacyLevel       String      @default("ENCRYPTED")
+  creator            String
+  totalVotes         Int         @default(0)
+  resultSummary      String?
+  
+  // SỬA: Thêm @default(now()) vào cả updatedAt để tránh lỗi khi insert tay
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @default(now()) @updatedAt
+
+  candidates         Candidate[]
+  voteEvents         VoteEvent[]
+  authorizedVoters   AuthorizedVoter[]
+  eventSyncCursors   EventSyncCursor[]
+}
+
+model Candidate {
+  id         Int      @id @default(autoincrement())
+  electionId Int
+  name       String
+  index      Int
+  voteCount  Int      @default(0)
+  
+  // BỔ SUNG: Cho đồng bộ
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  election   Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, index])
+}
+
+model VoteEvent {
+  id         Int      @id @default(autoincrement())
+  electionId Int
+  voter      String
+  txHash     String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt // BỔ SUNG
+
+  election   Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+}
+
+model AuthorizedVoter {
+  id           Int      @id @default(autoincrement())
+  electionId   Int
+  wallet       String
+  isAuthorized Boolean  @default(true)
+  lastTxHash   String?
+  
+  // FIX CHÍNH Ở ĐÂY: Thêm createdAt và mặc định cho updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  election     Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, wallet])
+}
+
+model AdminActionLog {
+  id         Int      @id @default(autoincrement())
+  action     String
+  electionId Int?
+  details    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt // BỔ SUNG
+}
+
+model EventSyncCursor {
+  id              Int      @id @default(autoincrement())
+  electionId      Int
+  eventName       String
+  lastSyncedBlock Int
+  
+  // FIX: Thêm mặc định
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  election        Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, eventName])
+}
+
+// --- MODEL MỚI: QUẢN LÝ THÔNG TIN NGƯỜI DÙNG THẬT ---
+// Thêm vào cuối file schema.prisma
+model AuthorizedIdentity {
+  id           Int      @id @default(autoincrement())
+  citizenId    String   @unique // Ví dụ: MSSV hoặc CCCD thật
+  fullName     String          // Tên của người đó
+  isClaimed    Boolean  @default(false) // Đã có ví nào liên kết với mã này chưa?
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+}
+
+// Bảng lưu hồ sơ sau khi người dùng đã liên kết ví
+model VoterProfile {
+  id           Int      @id @default(autoincrement())
+  citizenId    String   @unique
+  wallet       String   @unique
+  fullName     String
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+}

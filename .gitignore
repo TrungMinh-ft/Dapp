@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+*.log
+*.out
+*.err
+*.pid
+coverage
