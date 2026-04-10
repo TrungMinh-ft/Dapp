@@ -1,0 +1,37 @@
+{
+  "name": "LTDapp",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "scripts": {
+    "test": "hardhat test",
+    "test:node20": ".\\run-tests-node20.cmd",
+    "clean": "hardhat clean",
+    "check:node": "node -e \"const major=Number(process.versions.node.split('.')[0]); if (![20,22,24].includes(major)) { console.error('Unsupported Node.js '+process.versions.node+'. Use Node 20 LTS, 22 LTS, or 24 LTS.'); process.exit(1); } console.log('Node.js OK:', process.versions.node);\""
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^2.1.2",
+    "@nomicfoundation/hardhat-ethers": "^3.1.3",
+    "@nomicfoundation/hardhat-ignition": "^0.15.16",
+    "@nomicfoundation/hardhat-ignition-ethers": "^0.15.17",
+    "@nomicfoundation/hardhat-network-helpers": "^1.1.2",
+    "@nomicfoundation/hardhat-toolbox": "^6.1.2",
+    "@nomicfoundation/hardhat-verify": "^2.1.3",
+    "@oasisprotocol/sapphire-hardhat": "^2.22.2",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^4.3.20",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.5.0",
+    "chai": "^4.5.0",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0",
+    "hardhat": "^2.28.6",
+    "hardhat-gas-reporter": "^2.3.0",
+    "solidity-coverage": "^0.8.17",
+    "ts-node": "^10.9.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.9.3"
+  }
+}
