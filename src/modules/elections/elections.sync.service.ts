@@ -251,30 +251,35 @@ export class ElectionsSyncService implements OnModuleInit {
       await this.syncElectionEvents(Number(electionId));
     });
 
-    contract.on("VoteSubmitted", async (electionId, voter, event) => {
-      await this.syncElection(Number(electionId));
+    // ✅ FIX: Extract candidateIndex from event args
+    contract.on(
+      "VoteSubmitted",
+      async (electionId, voter, candidateIndex, event) => {
+        await this.syncElection(Number(electionId));
 
-      const dbElection = await this.prisma.election.findUnique({
-        where: { contractElectionId: Number(electionId) },
-      });
+        const dbElection = await this.prisma.election.findUnique({
+          where: { contractElectionId: Number(electionId) },
+        });
 
-      if (!dbElection) return;
+        if (!dbElection) return;
 
-      const txHash = event?.log?.transactionHash || null;
+        const txHash = event?.log?.transactionHash || null;
 
-      await this.prisma.voteEvent.upsert({
-        where: {
-          txHash:
-            txHash || `fallback-${Number(electionId)}-${voter}-${Date.now()}`,
-        },
-        update: {},
-        create: {
-          electionId: dbElection.id,
-          voter,
-          txHash,
-        },
-      });
-    });
+        await this.prisma.voteEvent.upsert({
+          where: {
+            txHash:
+              txHash || `fallback-${Number(electionId)}-${voter}-${Date.now()}`,
+          },
+          update: {},
+          create: {
+            electionId: dbElection.id,
+            voter,
+            candidateIndex: Number(candidateIndex), // ✅ THÊM FIELD NÀY
+            txHash,
+          },
+        });
+      },
+    );
   }
 
   private async syncVoteEvents(
@@ -293,13 +298,15 @@ export class ElectionsSyncService implements OnModuleInit {
     for (const log of progress.logs) {
       const event = log as EventLog;
       const voter = String(event.args[1]);
+      const candidateIndex = Number(event.args[2]); // ✅ THÊM DÒNG NÀY
 
       await this.prisma.voteEvent.upsert({
         where: { txHash: event.transactionHash },
-        update: { voter },
+        update: { voter, candidateIndex }, // ✅ UPDATE candidateIndex
         create: {
           electionId: dbElectionId,
           voter,
+          candidateIndex, // ✅ THÊM FIELD NÀY
           txHash: event.transactionHash,
         },
       });

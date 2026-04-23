@@ -48,17 +48,6 @@ model Candidate {
   @@unique([electionId, index])
 }
 
-model VoteEvent {
-  id         Int      @id @default(autoincrement())
-  electionId Int
-  voter      String
-  txHash     String?  @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @default(now()) @updatedAt // BỔ SUNG
-
-  election   Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
-}
-
 model AuthorizedVoter {
   id           Int      @id @default(autoincrement())
   electionId   Int
@@ -120,4 +109,25 @@ model VoterProfile {
   
   createdAt    DateTime @default(now())
   updatedAt    DateTime @default(now()) @updatedAt
+}
+
+model User {
+  id          Int      @id @default(autoincrement())
+  walletAddress String @unique
+  phoneNumber   String? @unique
+  isVerified    Boolean @default(false)
+}
+
+model VoteEvent {
+  id              Int      @id @default(autoincrement())
+  electionId      Int
+  voter           String
+  candidateIndex  Int      // ✅ THÊM FIELD NÀY
+  txHash          String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
+
+  election        Election @relation(fields: [electionId], references: [id], onDelete: Cascade)
+
+  @@unique([electionId, voter]) // ✅ Chỉ vote 1 lần mỗi cuộc bầu cử
 }
