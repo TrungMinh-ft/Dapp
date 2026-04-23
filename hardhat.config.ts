@@ -28,12 +28,11 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 1337,
     },
-    // ĐỔI TÊN Ở ĐÂY để khớp với lệnh: --network sapphire-testnet
-    "sapphire-testnet": {
-      url: "https://testnet.sapphire.oasis.dev", // URL chuẩn của Sapphire Testnet
+    // ĐÃ ĐỔI TÊN: sapphire_testnet (Khớp với lệnh bạn hay gõ)
+    sapphire_testnet: {
+      url: "https://testnet.sapphire.oasis.io", // Dùng .io sẽ ổn định hơn
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 0x5aff, // 23295
-      gasPrice: 100000000000, // 100 Gwei (Bạn có thể để tự động hoặc set cố định)
       timeout: 120000,
     },
   },
