@@ -4,6 +4,7 @@ import type {
   AuthorizedVoter,
   ElectionCard,
   VoteEvent,
+  VoteHistoryItem,
   VotingStatus,
 } from "../types";
 
@@ -79,7 +80,9 @@ async function fetchAdminJson<T>(
   } else if (adminAuth.legacyToken) {
     headers.set("x-admin-token", adminAuth.legacyToken);
   } else {
-    throw new Error("Admin API requires a connected admin wallet or legacy admin token.");
+    throw new Error(
+      "Admin API requires a connected admin wallet or legacy admin token.",
+    );
   }
 
   const response = await fetch(url, {
@@ -108,6 +111,13 @@ export const api = {
     fetchJson<VotingStatus>(
       `/votes/${id}/status?wallet=${encodeURIComponent(wallet)}`,
     ),
+
+  // ✅ MỚI: Lấy toàn bộ lịch sử vote của 1 ví trong 1 request
+  getVoteHistory: (wallet: string) =>
+    fetchJson<VoteHistoryItem[]>(
+      `/votes/history?wallet=${encodeURIComponent(wallet)}`,
+    ),
+
   syncElection: (id: string | number, adminAuth: AdminAuth) =>
     fetchAdminJson<{ success: boolean; message: string }>(
       `/elections/${id}/sync`,
@@ -126,33 +136,22 @@ export const api = {
       adminAuth,
     ),
   getAdminLogs: (adminAuth: AdminAuth) =>
-    fetchAdminJson<AdminActionLog[]>(
-      "/elections/admin/logs",
-      adminAuth,
-    ),
+    fetchAdminJson<AdminActionLog[]>("/elections/admin/logs", adminAuth),
   createAdminLog: (
     adminAuth: AdminAuth,
     body: { action: string; electionId?: number; details?: string },
   ) =>
-    fetchAdminJson<AdminActionLog>(
-      "/elections/admin/logs",
-      adminAuth,
-      {
-        method: "POST",
-        body: JSON.stringify(body),
-      },
-    ),
+    fetchAdminJson<AdminActionLog>("/elections/admin/logs", adminAuth, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   updateElectionMetadata: (
     id: string | number,
     adminAuth: AdminAuth,
     body: { proposalCode?: string; description?: string },
   ) =>
-    fetchAdminJson<ElectionCard>(
-      `/elections/${id}/admin-metadata`,
-      adminAuth,
-      {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      },
-    ),
+    fetchAdminJson<ElectionCard>(`/elections/${id}/admin-metadata`, adminAuth, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 };
