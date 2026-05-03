@@ -64,6 +64,15 @@ describe("PrivateVoting", function () {
     ).to.be.revertedWithCustomError(voting, "InvalidCandidateList");
   });
 
+  it("prevents non-owners from creating elections", async function () {
+    const { voting, other } = await loadFixture(deployPrivateVotingFixture);
+    const now = await time.latest();
+
+    await expect(
+      voting.connect(other).createElection("Invalid", ["Alice", "Bob"], now, now + 3600, true),
+    ).to.be.revertedWithCustomError(voting, "NotContractOwner");
+  });
+
   it("allows public voting, tracks status and returns results once closed", async function () {
     const { voting, voter, electionId } = await loadFixture(createPublicElectionFixture);
 

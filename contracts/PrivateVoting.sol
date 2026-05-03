@@ -14,6 +14,7 @@ contract PrivateVoting {
     }
 
     uint256 private _nextElectionId;
+    address public owner;
 
     mapping(uint256 => Election) private elections;
     mapping(uint256 => uint256[]) private voteCounts;
@@ -61,6 +62,7 @@ contract PrivateVoting {
     error InvalidCandidateIndex();
     error ElectionStillActive();
     error ElectionEndTimeNotReached();
+    error NotContractOwner();
 
     modifier electionExists(uint256 electionId) {
         if (electionId >= _nextElectionId) {
@@ -76,8 +78,16 @@ contract PrivateVoting {
         _;
     }
 
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert NotContractOwner();
+        }
+        _;
+    }
+
     constructor() {
         _nextElectionId = 0;
+        owner = msg.sender;
     }
 
     function createElection(
@@ -86,7 +96,7 @@ contract PrivateVoting {
         uint256 startTime,
         uint256 endTime,
         bool isPublic
-    ) external {
+    ) external onlyOwner {
         if (startTime >= endTime) {
             revert InvalidTimeRange();
         }
