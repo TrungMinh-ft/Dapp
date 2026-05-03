@@ -63,8 +63,12 @@ export class ElectionsService {
   }
 
   async findActive() {
+    const now = BigInt(Math.floor(Date.now() / 1000));
     const elections = await this.prisma.election.findMany({
-      where: { isClosed: false },
+      where: {
+        isClosed: false,
+        endTime: { gt: now },
+      },
       orderBy: { contractElectionId: "asc" },
       include: { candidates: { orderBy: { index: "asc" } } },
     });
@@ -72,8 +76,11 @@ export class ElectionsService {
   }
 
   async findFinished() {
+    const now = BigInt(Math.floor(Date.now() / 1000));
     const elections = await this.prisma.election.findMany({
-      where: { isClosed: true },
+      where: {
+        OR: [{ isClosed: true }, { endTime: { lte: now } }],
+      },
       orderBy: { contractElectionId: "asc" },
       include: { candidates: { orderBy: { index: "asc" } } },
     });

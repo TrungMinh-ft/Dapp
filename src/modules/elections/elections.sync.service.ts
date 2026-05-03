@@ -254,7 +254,7 @@ export class ElectionsSyncService implements OnModuleInit {
     // ✅ FIX: Extract candidateIndex from event args
     contract.on(
       "VoteSubmitted",
-      async (electionId, voter, candidateIndex, event) => {
+      async (electionId, voter, event) => {
         await this.syncElection(Number(electionId));
 
         const dbElection = await this.prisma.election.findUnique({
@@ -263,18 +263,33 @@ export class ElectionsSyncService implements OnModuleInit {
 
         if (!dbElection) return;
 
-        const txHash = event?.log?.transactionHash || null;
+        const txHash =
+          event?.log?.transactionHash || event?.transactionHash || null;
+        if (!txHash) {
+          this.logger.warn(
+            `[VoteSubmitted] Skipping vote event without transaction hash for election ${Number(electionId)}`,
+          );
+          return;
+        }
+
+        const parsedCandidateIndex = await this.getVoteCandidateIndexFromTx(
+          txHash,
+          Number(electionId),
+        );
+        if (!Number.isInteger(parsedCandidateIndex)) {
+          this.logger.warn(
+            `[VoteSubmitted] Skipping ${txHash}; cannot decode candidateIndex`,
+          );
+          return;
+        }
 
         await this.prisma.voteEvent.upsert({
-          where: {
-            txHash:
-              txHash || `fallback-${Number(electionId)}-${voter}-${Date.now()}`,
-          },
+          where: { txHash },
           update: {},
           create: {
             electionId: dbElection.id,
-            voter,
-            candidateIndex: Number(candidateIndex), // ✅ THÊM FIELD NÀY
+            voter: String(voter).toLowerCase(),
+            candidateIndex: parsedCandidateIndex,
             txHash,
           },
         });
@@ -297,22 +312,65 @@ export class ElectionsSyncService implements OnModuleInit {
 
     for (const log of progress.logs) {
       const event = log as EventLog;
-      const voter = String(event.args[1]);
-      const candidateIndex = Number(event.args[2]); // ✅ THÊM DÒNG NÀY
+      const voter = String(event.args[1]).toLowerCase();
+      const candidateIndex = await this.getVoteCandidateIndexFromTx(
+        event.transactionHash,
+        contractElectionId,
+      );
+
+      if (!Number.isInteger(candidateIndex)) {
+        this.logger.warn(
+          `[syncVoteEvents] Skipping ${event.transactionHash}; cannot decode candidateIndex`,
+        );
+        continue;
+      }
 
       await this.prisma.voteEvent.upsert({
         where: { txHash: event.transactionHash },
-        update: { voter, candidateIndex }, // ✅ UPDATE candidateIndex
+        update: { voter, candidateIndex },
         create: {
           electionId: dbElectionId,
           voter,
-          candidateIndex, // ✅ THÊM FIELD NÀY
+          candidateIndex,
           txHash: event.transactionHash,
         },
       });
     }
 
     return progress;
+  }
+
+  private async getVoteCandidateIndexFromTx(
+    txHash: string,
+    expectedElectionId: number,
+  ) {
+    const provider = this.blockchainService.getProvider();
+    const contract = this.blockchainService.getContract();
+    const tx = await provider.getTransaction(txHash);
+
+    if (!tx?.data) {
+      return null;
+    }
+
+    let parsed;
+    try {
+      parsed = contract.interface.parseTransaction({ data: tx.data });
+    } catch {
+      return null;
+    }
+
+    if (!parsed || parsed.name !== "vote") {
+      return null;
+    }
+
+    const electionId = Number(parsed.args[0]);
+    const candidateIndex = Number(parsed.args[1]);
+
+    if (electionId !== expectedElectionId) {
+      return null;
+    }
+
+    return candidateIndex;
   }
 
   private async syncAuthorizedVoters(

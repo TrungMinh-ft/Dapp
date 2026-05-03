@@ -183,7 +183,7 @@ export class BlockchainService {
 
       // ✅ Send transaction
       this.logger.log(`[castVote] Sending transaction...`);
-      const tx = await (contractWithSigner as any).castVote(
+      const tx = await (contractWithSigner as any).vote(
         electionId,
         candidateIndex,
       );

@@ -117,6 +117,42 @@ export class VotesController {
     });
   }
 
+  @Post("record")
+  @ApiOperation({
+    summary: "Luu lich su vote sau khi user da gui transaction tren vi",
+  })
+  async recordVote(
+    @Body()
+    body: {
+      electionId: number;
+      candidateIndex: number;
+      wallet: string;
+      txHash: string;
+    },
+  ) {
+    if (!body.electionId && body.electionId !== 0) {
+      throw new BadRequestException("electionId is required");
+    }
+    if (!body.candidateIndex && body.candidateIndex !== 0) {
+      throw new BadRequestException("candidateIndex is required");
+    }
+    if (!body.wallet) {
+      throw new BadRequestException("wallet is required");
+    }
+    if (!body.txHash) {
+      throw new BadRequestException("txHash is required");
+    }
+
+    const normalizedWallet = new WalletAddressPipe().transform(body.wallet);
+
+    return this.votesService.recordClientVote({
+      electionId: body.electionId,
+      candidateIndex: body.candidateIndex,
+      wallet: normalizedWallet,
+      txHash: body.txHash,
+    });
+  }
+
   @Post("cast")
   @ApiOperation({
     summary: "Gui phieu bau len blockchain",
