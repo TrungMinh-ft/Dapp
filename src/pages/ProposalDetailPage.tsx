@@ -1,399 +1,321 @@
-import { BrowserProvider, Contract } from "ethers";
-import { Phone, ShieldCheck } from "lucide-react";
+import { BrowserProvider, Contract, Interface } from "ethers";
+import { ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
+import { formatCandidateName, useI18n } from "../i18n";
 import { api } from "../lib/api";
 import { privateVotingAbi } from "../lib/privateVotingAbi";
 import type { ElectionCard, VotingStatus } from "../types";
 import { useWallet } from "../wallet";
-import { auth } from "../lib/firebase";
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult,
-} from "firebase/auth";
-import axios from "axios";
 
-const CONTRACT_ADDRESS =
-  (import.meta.env.VITE_CONTRACT_ADDRESS as string) ?? "";
+const CONTRACT_ADDRESS = (import.meta.env.VITE_CONTRACT_ADDRESS as string) ?? "";
+const votingInterface = new Interface(privateVotingAbi);
 
-// ✅ FIX: Dùng env thay vì hardcode localhost
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string) ||
-  `${window.location.protocol}//${window.location.hostname}:3001`;
+function getVoteErrorMessage(error: any, t: ReturnType<typeof useI18n>["t"]) {
+  const data = error?.data || error?.error?.data || error?.info?.error?.data;
+  if (data) {
+    try {
+      const parsed = votingInterface.parseError(data);
+      if (parsed?.name) {
+        const translated = t(`error.${parsed.name}`);
+        if (translated !== `error.${parsed.name}`) return translated;
+      }
+    } catch {
+      // Fall through to provider messages.
+    }
+  }
+
+  const rawMessage = String(error?.shortMessage || error?.reason || error?.message || "");
+  for (const key of ["VotingNotAllowed", "AlreadyVoted", "ElectionNotStarted", "ElectionEnded"]) {
+    if (rawMessage.includes(key)) return t(`error.${key}`);
+  }
+  return rawMessage || t("error.voteFallback");
+}
 
 function formatCountdown(endTime: string) {
-  const target = Number(endTime);
-  const now = Date.now();
-  const diff = Math.max(0, target - now);
+  const rawTarget = Number(endTime);
+  const target = rawTarget < 10000000000 ? rawTarget * 1000 : rawTarget;
+  const diff = Math.max(0, target - Date.now());
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
   const minutes = Math.floor((diff / (1000 * 60)) % 60);
   const seconds = Math.floor((diff / 1000) % 60);
-  return `${days}D ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} REMAINING`;
+  return `${days}d ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 export function ProposalDetailPage() {
   const { id } = useParams();
-  const { walletAddress } = useWallet();
+  const { t } = useI18n();
+  const { walletAddress, connectWallet, isConnecting } = useWallet();
   const [proposal, setProposal] = useState<ElectionCard | null>(null);
-  const [countdown, setCountdown] = useState("00:00:00 REMAINING");
+  const [countdown, setCountdown] = useState("00:00:00");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<VotingStatus | null>(null);
+  const [votedCandidateName, setVotedCandidateName] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // SMS AUTH STATE
-  const [phoneNumber, setPhoneNumber] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
-  const [confirmationResult, setConfirmationResult] =
-    useState<ConfirmationResult | null>(null);
+  const isExpired = useMemo(() => {
+    if (!proposal) return true;
+    const rawEndTime = Number(proposal.endTime);
+    const endTime = rawEndTime < 10000000000 ? rawEndTime * 1000 : rawEndTime;
+    return endTime <= Date.now();
+  }, [proposal]);
 
-  const isExpired = useMemo(
-    () => (proposal ? Number(proposal.endTime) <= Date.now() : true),
-    [proposal],
-  );
-
-  // LOAD DỮ LIỆU
   useEffect(() => {
     if (!id) return;
+    let mounted = true;
+
     async function load() {
       try {
         const detail = await api.getElectionDetail(id!);
+        if (!mounted) return;
         setProposal(detail);
         setCountdown(formatCountdown(detail.endTime));
+
         if (walletAddress) {
-          const res = await api.getVotingStatus(
-            detail.contractElectionId,
-            walletAddress.toLowerCase(),
-          );
-          setStatus(res);
+          const nextStatus = await api.getVotingStatus(detail.contractElectionId, walletAddress.toLowerCase());
+          if (mounted) setStatus(nextStatus);
+          if (nextStatus.hasVoted) {
+            const events = await api.getElectionVoteEvents(detail.contractElectionId, walletAddress.toLowerCase());
+            const voteEvent = events[0];
+            const candidate = detail.candidates.find((item) => item.index === voteEvent?.candidateIndex);
+            if (mounted) {
+              setVotedCandidateName(
+                candidate?.name ?? (voteEvent ? t("candidate.number", { index: voteEvent.candidateIndex }) : null),
+              );
+            }
+          } else if (mounted) {
+            setVotedCandidateName(null);
+          }
+        } else {
+          setStatus(null);
+          setVotedCandidateName(null);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
+        if (mounted) setSubmitState(t("vote.loadError"));
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
-    load();
-  }, [id, walletAddress]);
+
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, [id, walletAddress, t]);
 
   useEffect(() => {
     if (!proposal) return;
-    const timer = setInterval(
-      () => setCountdown(formatCountdown(proposal.endTime)),
-      1000,
-    );
+    const timer = setInterval(() => setCountdown(formatCountdown(proposal.endTime)), 1000);
     return () => clearInterval(timer);
   }, [proposal]);
 
-  const setupRecaptcha = () => {
-    if (!(window as any).recaptchaVerifier) {
-      (window as any).recaptchaVerifier = new RecaptchaVerifier(
-        auth,
-        "recaptcha-container",
-        { size: "invisible" },
-      );
-    }
-  };
-
-  async function handleSendOTP() {
-    if (!phoneNumber) return alert("Vui lòng nhập SĐT!");
-    setupRecaptcha();
-    try {
-      const formattedPhone = phoneNumber.startsWith("0")
-        ? "+84" + phoneNumber.slice(1)
-        : phoneNumber;
-      const result = await signInWithPhoneNumber(
-        auth,
-        formattedPhone,
-        (window as any).recaptchaVerifier,
-      );
-      setConfirmationResult(result);
-      setSubmitState("Đã gửi mã xác thực!");
-    } catch (err: any) {
-      setSubmitState("Lỗi gửi OTP: " + err.message);
-      // Reset recaptcha nếu lỗi
-      (window as any).recaptchaVerifier = null;
-    }
-  }
-
-  async function handleVerifyOTP() {
-    if (!verificationCode || !confirmationResult) return;
-    try {
-      const result = await confirmationResult.confirm(verificationCode);
-
-      // ✅ FIX: Dùng API_BASE_URL thay vì hardcode localhost
-      await axios.post(`${API_BASE_URL}/auth/verify-phone-success`, {
-        walletAddress: walletAddress?.toLowerCase(),
-        phoneNumber: result.user.phoneNumber,
-      });
-
-      const nextStatus = await api.getVotingStatus(
-        proposal!.contractElectionId,
-        walletAddress!.toLowerCase(),
-      );
-      setStatus(nextStatus);
-      setSubmitState("Xác thực thành công! Đang mở ví...");
-      setTimeout(() => {
-        submitVote();
-      }, 1000);
-    } catch (err: any) {
-      if (err.response?.data?.message) {
-        setSubmitState("Lỗi: " + err.response.data.message);
-      } else {
-        alert("OTP sai hoặc đã hết hạn!");
-      }
-    }
-  }
-
   async function submitVote() {
-    if (!proposal || !walletAddress || selectedIndex === null) {
-      setSubmitState("Vui lòng chọn 1 ứng viên trước khi bầu chọn!");
+    if (!proposal) return;
+    if (!walletAddress) {
+      setSubmitState(t("vote.connectFirst"));
+      return;
+    }
+    if (!status?.isPhoneVerified) {
+      setSubmitState(t("vote.phoneFirst"));
+      return;
+    }
+    if (!status?.isAuthorized) {
+      setSubmitState(t("vote.permissionDenied"));
+      return;
+    }
+    if (selectedIndex === null) {
+      setSubmitState(t("vote.noCandidate"));
       return;
     }
 
     setIsSubmitting(true);
-    setSubmitState("Đang khởi tạo giao dịch MetaMask...");
+    setSubmitState(t("vote.openWallet"));
 
     try {
       const provider = new BrowserProvider(window.ethereum as any);
       const signer = await provider.getSigner();
       const contract = new Contract(CONTRACT_ADDRESS, privateVotingAbi, signer);
+      const tx = await contract.vote(proposal.contractElectionId, selectedIndex);
 
-      // 1. Gửi giao dịch lên Blockchain
-      const tx = await contract.vote(
-        proposal.contractElectionId,
-        selectedIndex,
-      );
+      setSubmitState(t("vote.waitChain"));
+      await tx.wait();
 
-      setSubmitState("Giao dịch đã gửi! Đang chờ Blockchain xác nhận...");
-      await tx.wait(); // Chờ đợi giao dịch hoàn tất trên chuỗi
-
-      // --- PHẦN QUAN TRỌNG: KÍCH HOẠT ĐỒNG BỘ LỊCH SỬ NGAY LẬP TỨC ---
-      setSubmitState("Blockchain đã xác nhận! Đang đồng bộ vào lịch sử...");
+      setSubmitState(t("vote.recording"));
       try {
-        // Gọi API Backend để quét phiếu bầu của cuộc này và lưu vào Neon DB
-        // Chúng ta dùng route /sync-events để bắt các sự kiện VoteCast mới nhất
-        await axios.post(
-          `http://localhost:3001/elections/${proposal.contractElectionId}/sync-events`,
-        );
-        console.log("Đồng bộ dữ liệu thành công!");
-      } catch (syncErr) {
-        console.error(
-          "Lỗi đồng bộ (nhưng vote đã thành công trên chain):",
-          syncErr,
-        );
+        await api.recordVote({
+          electionId: proposal.contractElectionId,
+          candidateIndex: selectedIndex,
+          wallet: walletAddress.toLowerCase(),
+          txHash: tx.hash,
+        });
+      } catch (recordError) {
+        console.error("Vote succeeded but history recording failed", recordError);
+        setSubmitState(t("vote.recordFailed"));
       }
-      // ------------------------------------------------------------
 
-      setSubmitState("Bầu cử thành công và đã lưu vào lịch sử!");
-
-      // Cập nhật lại trạng thái hiển thị (hasVoted = true)
-      const res = await api.getVotingStatus(
-        proposal.contractElectionId,
-        walletAddress.toLowerCase(),
+      const nextStatus = await api.getVotingStatus(proposal.contractElectionId, walletAddress.toLowerCase());
+      setStatus(nextStatus);
+      setVotedCandidateName(
+        proposal.candidates.find((item) => item.index === selectedIndex)?.name ??
+          t("candidate.number", { index: selectedIndex }),
       );
-      setStatus(res);
-    } catch (err: any) {
-      console.error(err);
-      setSubmitState(
-        "Lỗi: " +
-          (err.reason ||
-            "Bạn đã bầu cho cuộc này rồi hoặc chưa được Authorize."),
-      );
+      setSubmitState(t("vote.success"));
+    } catch (error: any) {
+      console.error(error);
+      setSubmitState(t("error.prefix", { error: getVoteErrorMessage(error, t) }));
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="p-20 text-cyan-400 text-center uppercase tracking-widest animate-pulse">
-        Initializing Interface...
+      <div className="p-20 text-center uppercase tracking-widest text-cyan-400 animate-pulse">
+        {t("vote.loading")}
       </div>
     );
+  }
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10 lg:py-16 text-white">
-      <div id="recaptcha-container"></div>
+    <div className="mx-auto max-w-7xl px-6 py-10 text-white lg:px-10 lg:py-16">
       <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-        {/* CỘT TRÁI: CHI TIẾT */}
         <section className="space-y-10">
           <div>
-            <h1 className="text-5xl font-heading uppercase tracking-tighter mb-6">
-              Proposal Detail
+            <h1 className="mb-6 font-heading text-5xl uppercase tracking-[0.12em]">
+              {t("vote.detailTitle")}
             </h1>
-            <div className="inline-block bg-[#2D1B00] border border-orange-500/50 px-8 py-4 rounded-2xl text-orange-400 font-digital text-4xl shadow-glow">
+            <div className="inline-block rounded-2xl border border-orange-500/50 bg-[#2D1B00] px-8 py-4 font-heading text-3xl text-orange-400 shadow-glow">
               {countdown}
             </div>
           </div>
 
-          <div className="bg-[#0A0D14] border border-white/5 p-10 rounded-[40px] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-cyan-500/30 shadow-glow"></div>
-            <p className="text-accent font-heading text-xs uppercase tracking-[0.4em] mb-4">
-              OIP-{proposal?.contractElectionId} | ELECTION
+          <div className="panel p-10">
+            <p className="mb-4 font-heading text-xs uppercase tracking-[0.4em] text-accent">
+              OIP-{proposal?.contractElectionId} | {proposal?.proposalCode}
             </p>
-            <h2 className="text-4xl font-heading uppercase tracking-wider mb-8">
+            <h2 className="mb-8 font-heading text-4xl uppercase tracking-wider">
               {proposal?.title}
             </h2>
-
-            {/* ✅ FIX: Ẩn đoạn mô tả nếu rỗng thay vì hiện "Dữ liệu đang được đồng bộ..." */}
-            {proposal?.description ? (
-              <p className="text-copy text-lg leading-relaxed italic opacity-60">
-                {proposal.description}
-              </p>
-            ) : (
-              <p className="text-copy text-sm italic opacity-30">
-                Chưa có mô tả cho cuộc bầu cử này.
-              </p>
-            )}
+            <p className="text-lg leading-relaxed text-copy">
+              {proposal?.description || t("vote.noDescription")}
+            </p>
           </div>
         </section>
 
-        {/* CỘT PHẢI: BẦU CỬ */}
-        <aside className="bg-[#0A0D14] border border-white/5 p-10 rounded-[40px] shadow-2xl">
-          <h2 className="text-2xl font-heading uppercase flex items-center gap-4 mb-8">
-            <ShieldCheck className="text-cyan-400" /> Cast Your Ballot
+        <aside className="panel p-10 shadow-2xl">
+          <h2 className="mb-8 flex items-center gap-4 font-heading text-2xl uppercase">
+            <ShieldCheck className="text-cyan-400" /> {t("vote.panelTitle")}
           </h2>
 
-          <div className="space-y-4 mb-8">
-            <div className="flex justify-between bg-white/5 p-4 rounded-xl border border-white/5">
-              <span className="text-xs opacity-40 uppercase">Wallet</span>
+          <div className="mb-8 space-y-4">
+            <div className="flex justify-between rounded-xl border border-white/5 bg-white/5 p-4">
+              <span className="text-xs uppercase opacity-40">{t("vote.wallet")}</span>
               <span className="font-mono text-xs">
-                {walletAddress?.slice(0, 10)}...
+                {walletAddress ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-4)}` : t("vote.notConnected")}
               </span>
             </div>
-            <div className="flex justify-between bg-white/5 p-4 rounded-xl border border-white/5">
-              <span className="text-xs opacity-40 uppercase">Status</span>
-              <span
-                className={
-                  status?.isPhoneVerified
-                    ? "text-green-400 text-xs font-bold"
-                    : "text-red-400 text-xs font-bold"
-                }
-              >
-                {status?.isPhoneVerified
-                  ? "PHONE VERIFIED ✓"
-                  : "VERIFICATION REQUIRED"}
+            <div className="flex justify-between rounded-xl border border-white/5 bg-white/5 p-4">
+              <span className="text-xs uppercase opacity-40">{t("vote.verification")}</span>
+              <span className={status?.isPhoneVerified ? "text-xs font-bold text-green-400" : "text-xs font-bold text-red-400"}>
+                {status?.isPhoneVerified ? t("vote.verifiedPhone") : t("vote.needPhone")}
               </span>
             </div>
+            <div className="flex justify-between rounded-xl border border-white/5 bg-white/5 p-4">
+              <span className="text-xs uppercase opacity-40">{t("vote.permission")}</span>
+              <span className={status?.isAuthorized ? "text-xs font-bold text-green-400" : "text-xs font-bold text-red-400"}>
+                {status?.isAuthorized ? t("vote.authorized") : t("vote.notAuthorized")}
+              </span>
+            </div>
+            {status?.hasVoted && votedCandidateName && (
+              <div className="flex justify-between rounded-xl border border-accent/20 bg-accent/10 p-4">
+                <span className="text-xs uppercase opacity-60">{t("vote.voted")}</span>
+                <span className="text-right text-xs font-bold text-accent">{formatCandidateName(votedCandidateName, t)}</span>
+              </div>
+            )}
           </div>
 
-          {/* BOX XÁC THỰC - Chỉ hiện khi chưa verify */}
-          {!status?.isPhoneVerified && (
-            <div className="mb-8 p-6 rounded-3xl border border-purple-500/40 bg-purple-900/10 shadow-[0_0_30px_rgba(168,85,247,0.1)]">
-              <p className="text-purple-400 text-[10px] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Phone className="w-3 h-3" /> 2-Step Verification
-              </p>
-              {!confirmationResult ? (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="SĐT 0385..."
-                    className="flex-1 bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                  />
-                  <button
-                    onClick={handleSendOTP}
-                    className="bg-cyan-500 text-black px-6 rounded-xl font-bold uppercase text-[10px] hover:bg-cyan-400 transition-colors"
-                  >
-                    Send
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-green-400 text-xs mb-2">
-                    ✓ Mã OTP đã gửi đến {phoneNumber}
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="1 2 3 4 5 6"
-                    className="w-full bg-black/50 border border-purple-500/50 rounded-xl py-3 text-center text-2xl font-heading tracking-[0.5em] text-white"
-                    value={verificationCode}
-                    onChange={(e) => setVerificationCode(e.target.value)}
-                    maxLength={6}
-                  />
-                  <button
-                    onClick={handleVerifyOTP}
-                    className="w-full bg-green-600 p-4 rounded-xl font-bold uppercase text-white shadow-glow hover:bg-green-500 transition-colors"
-                  >
-                    Verify & Vote Now
-                  </button>
-                  <button
-                    onClick={() => {
-                      setConfirmationResult(null);
-                      setVerificationCode("");
-                      (window as any).recaptchaVerifier = null;
-                    }}
-                    className="w-full text-xs text-white/40 hover:text-white/60 transition-colors mt-1"
-                  >
-                    Gửi lại mã
-                  </button>
-                </div>
-              )}
-            </div>
+          {!walletAddress && (
+            <button
+              className="cyber-button mb-6 w-full px-6 py-4 font-heading text-sm uppercase tracking-[0.24em]"
+              onClick={() => void connectWallet()}
+              disabled={isConnecting}
+            >
+              {isConnecting ? t("wallet.connecting") : t("vote.connectWallet")}
+            </button>
           )}
 
-          {/* CHỌN ỨNG VIÊN */}
-          <div
-            className={`space-y-4 ${status?.hasVoted ? "opacity-30 pointer-events-none" : ""}`}
-          >
-            <p className="text-[10px] uppercase tracking-widest opacity-30 mb-2 font-heading">
-              Select Candidate:
+          {walletAddress && !status?.isPhoneVerified && (
+            <Link
+              to="/login"
+              className="cyber-button mb-6 inline-flex w-full justify-center px-6 py-4 font-heading text-sm uppercase tracking-[0.24em]"
+            >
+              {t("vote.loginVerify")}
+            </Link>
+          )}
+
+          <div className={`space-y-4 ${status?.hasVoted ? "pointer-events-none opacity-30" : ""}`}>
+            <p className="mb-2 font-heading text-[10px] uppercase tracking-widest opacity-40">
+              {t("vote.selectCandidate")}
             </p>
-            {proposal?.candidates.map((c) => (
+            {proposal?.candidates.map((candidate) => (
               <label
-                key={c.id}
-                className={`flex items-center justify-between p-5 border rounded-2xl cursor-pointer transition-all ${
-                  selectedIndex === c.index
-                    ? "border-accent bg-accent/5 shadow-glow scale-[1.02]"
+                key={candidate.id}
+                className={`flex cursor-pointer items-center justify-between rounded-2xl border p-5 transition-all ${
+                  selectedIndex === candidate.index
+                    ? "scale-[1.02] border-accent bg-accent/5 shadow-glow"
                     : "border-white/5 hover:border-white/20"
                 }`}
               >
                 <div className="flex items-center gap-4">
                   <input
                     type="radio"
-                    checked={selectedIndex === c.index}
-                    onChange={() => setSelectedIndex(c.index)}
-                    className="w-5 h-5 accent-accent"
+                    checked={selectedIndex === candidate.index}
+                    onChange={() => setSelectedIndex(candidate.index)}
+                    className="h-5 w-5 accent-accent"
                   />
-                  <span className="font-heading text-lg uppercase">
-                    {c.name}
-                  </span>
+                  <span className="font-heading text-lg uppercase">{formatCandidateName(candidate.name, t)}</span>
                 </div>
+                <span className="font-mono text-xs text-copy">{candidate.voteCount}</span>
               </label>
             ))}
           </div>
 
           <button
-            onClick={() => submitVote()}
-            className="shimmer-button w-full mt-10 p-6 rounded-2xl font-heading text-xl uppercase tracking-widest disabled:opacity-20 disabled:cursor-not-allowed"
+            onClick={() => void submitVote()}
+            className="shimmer-button mt-10 w-full rounded-2xl p-6 font-heading text-xl uppercase tracking-widest disabled:cursor-not-allowed disabled:opacity-20"
             disabled={
               isSubmitting ||
               isExpired ||
               status?.hasVoted ||
+              !walletAddress ||
               !status?.isPhoneVerified ||
+              !status?.isAuthorized ||
               selectedIndex === null
             }
           >
             {isSubmitting
-              ? "Processing..."
+              ? t("vote.buttonProcessing")
               : status?.hasVoted
-                ? "Already Voted ✓"
+                ? t("vote.buttonAlreadyVoted")
                 : isExpired
-                  ? "Election Ended"
-                  : !status?.isPhoneVerified
-                    ? "Verify Phone First"
-                    : selectedIndex === null
-                      ? "Select a Candidate"
-                      : "Confirm My Vote"}
+                  ? t("vote.buttonExpired")
+                  : !walletAddress
+                    ? t("vote.buttonNeedWallet")
+                    : !status?.isPhoneVerified
+                      ? t("vote.buttonNeedPhone")
+                      : !status?.isAuthorized
+                        ? t("vote.buttonNotAuthorized")
+                        : selectedIndex === null
+                          ? t("vote.buttonChoose")
+                          : t("vote.buttonSubmit")}
           </button>
 
           {submitState && (
-            <p className="mt-6 text-center text-xs text-accent italic animate-pulse border-l-2 border-accent pl-3">
+            <p className="mt-6 border-l-2 border-accent pl-3 text-center text-xs italic text-accent">
               {submitState}
             </p>
           )}

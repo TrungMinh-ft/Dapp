@@ -1,6 +1,7 @@
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatCandidateName, formatStatusLabel, useI18n } from "../i18n";
 import { api } from "../lib/api";
 import type { ElectionCard } from "../types";
 import { useWallet } from "../wallet";
@@ -12,9 +13,11 @@ function ProposalCard({
   proposal: ElectionCard;
   primary: "filled" | "outline";
 }) {
+  const { t } = useI18n();
+  const leading = formatCandidateName(proposal.leadingOption, t);
   const footer = proposal.resultSummary
-    ? `${proposal.displayStatus} - ${proposal.leadingPercentage}% ${proposal.leadingOption === "NO" ? "AGAINST" : "FOR"}`
-    : `${proposal.displayStatus} - ${proposal.leadingPercentage}% FOR`;
+    ? `${formatStatusLabel(proposal.displayStatus, t)} - ${proposal.leadingPercentage}% ${leading}`
+    : `${formatStatusLabel(proposal.displayStatus, t)} - ${proposal.leadingPercentage}% ${t("candidate.yes")}`;
 
   return (
     <article className="panel group p-6 transition duration-300 hover:-translate-y-1 hover:shadow-glow">
@@ -25,12 +28,12 @@ function ProposalCard({
           </p>
           <p className="mt-3 text-lg text-white">{proposal.title}</p>
           <p className="mt-2 line-clamp-2 text-base text-copy">
-            {proposal.description || "No proposal description synced yet."}
+            {proposal.description || t("gallery.noDescription")}
           </p>
         </div>
       </div>
       <div className="mt-6 inline-flex rounded-full border border-accent/30 bg-accent/10 px-4 py-2 font-heading text-xs uppercase tracking-[0.24em] text-accent">
-        {proposal.badgeLabel}
+        {formatStatusLabel(proposal.badgeLabel, t)}
       </div>
       <div className="mt-8 h-2 overflow-hidden rounded-full bg-white/10">
         <div
@@ -43,7 +46,7 @@ function ProposalCard({
           {footer}
         </p>
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-copy">
-          lead: {proposal.leadingOption ?? "n/a"}
+          {t("gallery.leading", { value: leading })}
         </p>
       </div>
       <Link
@@ -54,7 +57,7 @@ function ProposalCard({
             : "cyber-button mt-8 inline-flex px-5 py-3 text-xs font-heading uppercase tracking-[0.24em]"
         }
       >
-        {primary === "filled" ? "Vote Now" : "View Results"}
+        {primary === "filled" ? t("gallery.vote") : t("gallery.viewResults")}
       </Link>
     </article>
   );
@@ -74,14 +77,14 @@ function filterProposals(
       proposal.proposalCode.toLowerCase().includes(normalizedSearch) ||
       proposal.title.toLowerCase().includes(normalizedSearch);
     const matchesStatus = status === "ALL" || proposal.displayStatus === status;
-    const matchesPrivacy =
-      privacy === "ALL" || proposal.privacyLevel === privacy;
+    const matchesPrivacy = privacy === "ALL" || proposal.privacyLevel === privacy;
 
     return matchesSearch && matchesStatus && matchesPrivacy;
   });
 }
 
 export function GalleryPage() {
+  const { t } = useI18n();
   const { walletAddress, connectWallet, isConnecting } = useWallet();
   const [activeProposals, setActiveProposals] = useState<ElectionCard[]>([]);
   const [finishedProposals, setFinishedProposals] = useState<ElectionCard[]>([]);
@@ -101,23 +104,16 @@ export function GalleryPage() {
           api.getFinishedElections(),
         ]);
 
-        if (!mounted) {
-          return;
-        }
-
+        if (!mounted) return;
         setActiveProposals(active);
         setFinishedProposals(finished);
         setError(null);
       } catch (loadError) {
-        if (!mounted) {
-          return;
-        }
-
-        setError(loadError instanceof Error ? loadError.message : "Failed to load proposals");
-      } finally {
         if (mounted) {
-          setLoading(false);
+          setError(loadError instanceof Error ? loadError.message : t("gallery.loadError"));
         }
+      } finally {
+        if (mounted) setLoading(false);
       }
     }
 
@@ -126,7 +122,7 @@ export function GalleryPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [t]);
 
   const visibleActive = useMemo(
     () => filterProposals(activeProposals, search, status, privacy),
@@ -142,7 +138,7 @@ export function GalleryPage() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="font-heading text-4xl uppercase tracking-[0.18em] text-white lg:text-5xl">
-            Voting Proposals Gallery
+            {t("gallery.title")}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -150,7 +146,7 @@ export function GalleryPage() {
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-copy" />
             <input
               className="field-input min-w-[280px] pl-11"
-              placeholder="Search by proposalCode / title..."
+              placeholder={t("gallery.searchPlaceholder")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -160,20 +156,20 @@ export function GalleryPage() {
             value={status}
             onChange={(event) => setStatus(event.target.value)}
           >
-            <option value="ALL">Filter by Status</option>
-            <option value="VOTING LIVE">VOTING LIVE</option>
-            <option value="PASSED">PASSED</option>
-            <option value="REJECTED">REJECTED</option>
-            <option value="FINISHED">FINISHED</option>
+            <option value="ALL">{t("gallery.statusFilter")}</option>
+            <option value="VOTING LIVE">{t("status.votingLive")}</option>
+            <option value="PASSED">{t("status.passed")}</option>
+            <option value="REJECTED">{t("status.rejected")}</option>
+            <option value="FINISHED">{t("status.finished")}</option>
           </select>
           <select
             className="field-input min-w-[180px]"
             value={privacy}
             onChange={(event) => setPrivacy(event.target.value)}
           >
-            <option value="ALL">Filter by Privacy</option>
-            <option value="ENCRYPTED">ENCRYPTED</option>
-            <option value="PUBLIC">PUBLIC</option>
+            <option value="ALL">{t("gallery.privacyFilter")}</option>
+            <option value="ENCRYPTED">{t("privacy.private")}</option>
+            <option value="PUBLIC">{t("privacy.public")}</option>
           </select>
           <button
             className="cyber-button px-5 py-3 text-xs font-heading uppercase tracking-[0.24em]"
@@ -182,15 +178,15 @@ export function GalleryPage() {
             {walletAddress
               ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
               : isConnecting
-                ? "Connecting..."
-                : "Connect Wallet"}
+                ? t("wallet.connecting")
+                : t("wallet.connect")}
           </button>
         </div>
       </div>
 
       {loading ? (
         <div className="panel mt-12 px-8 py-10 text-lg text-copy">
-          Loading proposal feed...
+          {t("gallery.loading")}
         </div>
       ) : null}
       {error ? (
@@ -202,7 +198,7 @@ export function GalleryPage() {
       <section className="mt-12">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-heading text-2xl uppercase tracking-[0.16em] text-white">
-            Active Proposals
+            {t("gallery.active")}
           </h2>
           <p className="font-mono text-xs uppercase tracking-[0.32em] text-accent">
             /elections/active
@@ -210,11 +206,7 @@ export function GalleryPage() {
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           {visibleActive.map((proposal) => (
-            <ProposalCard
-              key={proposal.contractElectionId}
-              proposal={proposal}
-              primary="filled"
-            />
+            <ProposalCard key={proposal.contractElectionId} proposal={proposal} primary="filled" />
           ))}
         </div>
       </section>
@@ -222,7 +214,7 @@ export function GalleryPage() {
       <section className="mt-16">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-heading text-2xl uppercase tracking-[0.16em] text-white">
-            Finished Proposals
+            {t("gallery.finished")}
           </h2>
           <p className="font-mono text-xs uppercase tracking-[0.32em] text-copy">
             /elections/finished
@@ -230,11 +222,7 @@ export function GalleryPage() {
         </div>
         <div className="grid gap-6 lg:grid-cols-3">
           {visibleFinished.map((proposal) => (
-            <ProposalCard
-              key={proposal.contractElectionId}
-              proposal={proposal}
-              primary="outline"
-            />
+            <ProposalCard key={proposal.contractElectionId} proposal={proposal} primary="outline" />
           ))}
         </div>
       </section>

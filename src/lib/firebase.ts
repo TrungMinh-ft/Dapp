@@ -2,16 +2,15 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBmQDNSeVC7UJEi6vpVJSnTSvKjjdgBv5U",
-  authDomain: "votingdapp-114d1.firebaseapp.com",
-  projectId: "votingdapp-114d1",
-  storageBucket: "votingdapp-114d1.firebasestorage.app",
-  messagingSenderId: "637243972825",
-  appId: "1:637243972825:web:a09b82aa629bf6319bb2c8",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
   measurementId: "G-X37YRL1ZB6",
 };
 
 const app = initializeApp(firebaseConfig);
 
-// PHẢI CÓ CHỮ EXPORT Ở ĐÂY
 export const auth = getAuth(app);

@@ -1,4 +1,12 @@
 export const privateVotingAbi = [
+  { inputs: [], name: "ElectionAlreadyClosed", type: "error" },
+  { inputs: [], name: "ElectionEnded", type: "error" },
+  { inputs: [], name: "ElectionNotFound", type: "error" },
+  { inputs: [], name: "ElectionNotStarted", type: "error" },
+  { inputs: [], name: "InvalidCandidateIndex", type: "error" },
+  { inputs: [], name: "AlreadyVoted", type: "error" },
+  { inputs: [], name: "NotElectionCreator", type: "error" },
+  { inputs: [], name: "VotingNotAllowed", type: "error" },
   {
     anonymous: false,
     inputs: [

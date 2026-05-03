@@ -8,11 +8,13 @@ export type ElectionCard = {
   endTime: string;
   isPublic: boolean;
   isClosed: boolean;
-  displayStatus: string; // THÊM DÒNG NÀY
-  badgeLabel: string; // THÊM DÒNG NÀY
+  displayStatus: string;
+  badgeLabel: string;
   privacyLevel: string;
   creator: string;
   totalVotes: number;
+  leadingOption: string | null;
+  leadingPercentage: number;
   resultSummary: string | null;
   candidates: Candidate[];
 };
@@ -31,7 +33,7 @@ export type VotingStatus = {
   hasVoted: boolean;
   isAuthorized: boolean;
   isRegistered: boolean;
-  isPhoneVerified: boolean; // ✅ FIX: Thêm field này
+  isPhoneVerified: boolean;
   fullName?: string | null;
   citizenId?: string | null;
 };
@@ -77,6 +79,7 @@ export type VoteHistoryItem = {
   title: string;
   voter: string;
   candidateIndex: number;
+  candidateName: string | null;
   txHash: string | null;
   createdAt: string;
 };

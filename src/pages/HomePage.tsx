@@ -1,51 +1,53 @@
 import { ArrowRight, Cpu, Fingerprint, Lock, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SectionTitle } from "../components/SectionTitle";
-
-const steps = [
-  {
-    number: "01",
-    title: "Encrypt Your Vote",
-    description: "Each ballot is sealed before submission so sensitive preferences never leak to the public mempool.",
-    icon: Fingerprint,
-  },
-  {
-    number: "02",
-    title: "Secure Computation",
-    description: "Oasis Sapphire executes vote logic inside confidential smart contract environments backed by TEE isolation.",
-    icon: Cpu,
-  },
-  {
-    number: "03",
-    title: "Verify The Results",
-    description: "Auditable outcomes, verifiable timestamps, and immutable proofs remain visible while personal choices stay hidden.",
-    icon: ShieldCheck,
-  },
-];
+import { useI18n } from "../i18n";
 
 export function HomePage() {
+  const { t } = useI18n();
+  const steps = [
+    {
+      number: "01",
+      title: t("home.step1Title"),
+      description: t("home.step1Description"),
+      icon: Fingerprint,
+    },
+    {
+      number: "02",
+      title: t("home.step2Title"),
+      description: t("home.step2Description"),
+      icon: Cpu,
+    },
+    {
+      number: "03",
+      title: t("home.step3Title"),
+      description: t("home.step3Description"),
+      icon: ShieldCheck,
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-10 lg:px-10 lg:py-16">
       <section className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-16">
         <div>
           <p className="mb-4 font-mono text-xs uppercase tracking-[0.45em] text-accent">
-            Next-Gen Confidential Governance
+            {t("home.eyebrow")}
           </p>
           <h1 className="max-w-4xl font-heading text-5xl uppercase leading-[1.05] tracking-[0.14em] text-white lg:text-7xl">
-            Secure Private Voting On Oasis Sapphire
+            {t("home.title")}
           </h1>
           <p className="mt-6 max-w-2xl text-xl text-copy">
-            Confidential. Verifiable. Powered by TEE-based encryption.
+            {t("home.subtitle")}
           </p>
           <div className="mt-10 flex flex-wrap items-center gap-4">
             <Link to="/gallery" className="cyber-button px-8 py-4 font-heading text-sm uppercase tracking-[0.3em]">
-              Launch Dapp
+              {t("home.primaryCta")}
             </Link>
             <Link
               to="/my-votes"
               className="inline-flex items-center gap-3 rounded-full border border-white/10 px-6 py-4 text-sm uppercase tracking-[0.2em] text-copy transition hover:-translate-y-0.5 hover:border-accent/50 hover:text-white"
             >
-              Explore Records
+              {t("home.secondaryCta")}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -67,9 +69,9 @@ export function HomePage() {
 
       <section className="py-16">
         <SectionTitle
-          eyebrow="How It Works"
-          title="Trusted Privacy Pipeline"
-          subtitle="From encrypted ballots to publicly auditable final tallies, each phase is designed to preserve confidentiality without sacrificing legitimacy."
+          eyebrow={t("home.howEyebrow")}
+          title={t("home.howTitle")}
+          subtitle={t("home.howSubtitle")}
           align="center"
         />
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -94,19 +96,19 @@ export function HomePage() {
       <section className="panel mt-8 flex flex-col items-start justify-between gap-6 px-8 py-10 lg:flex-row lg:items-center">
         <div>
           <p className="font-heading text-2xl uppercase tracking-[0.16em] text-white">
-            Ready to participate in the future of secure voting?
+            {t("home.readyTitle")}
           </p>
           <p className="mt-2 text-lg text-copy">
-            Browse active encrypted proposals and test the governance experience.
+            {t("home.readySubtitle")}
           </p>
         </div>
         <Link to="/gallery" className="shimmer-button px-8 py-4 font-heading text-sm uppercase tracking-[0.28em] text-base">
-          Explore Active Polls
+          {t("home.viewElections")}
         </Link>
       </section>
 
       <footer className="mt-16 flex flex-col gap-4 border-t border-[rgba(0,229,255,0.18)] py-8 text-sm text-copy lg:flex-row lg:items-center lg:justify-between">
-        <p>© 2026 Sapphire Vote. Confidential governance interface.</p>
+        <p>{t("home.footer")}</p>
         <div className="flex gap-6 uppercase tracking-[0.22em]">
           <a href="/">X</a>
           <a href="/">GitHub</a>

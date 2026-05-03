@@ -11,6 +11,7 @@ type WalletContextValue = {
   walletAddress: string | null;
   isConnecting: boolean;
   connectWallet: () => Promise<void>;
+  disconnectWallet: () => void;
   signMessage: (message: string) => Promise<string>;
 };
 
@@ -34,13 +35,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     const handleAccountsChanged = (accounts: unknown) => {
       const nextAddress = Array.isArray(accounts) ? String(accounts[0] ?? "") : "";
+      if (nextAddress) {
+        window.localStorage.removeItem("walletDisconnected");
+      }
       setWalletAddress(nextAddress || null);
     };
 
-    void provider
-      .request({ method: "eth_accounts" })
-      .then((accounts) => handleAccountsChanged(accounts))
-      .catch(() => undefined);
+    if (window.localStorage.getItem("walletDisconnected") !== "true") {
+      void provider
+        .request({ method: "eth_accounts" })
+        .then((accounts) => handleAccountsChanged(accounts))
+        .catch(() => undefined);
+    }
 
     provider.on?.("accountsChanged", handleAccountsChanged);
     return () => {
@@ -51,23 +57,29 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   async function connectWallet() {
     const provider = window.ethereum;
     if (!provider) {
-      throw new Error("MetaMask or an EVM wallet extension was not found.");
+      throw new Error("MetaMask or a compatible EVM wallet was not found.");
     }
 
     setIsConnecting(true);
     try {
       const accounts = await provider.request({ method: "eth_requestAccounts" });
       const nextAddress = Array.isArray(accounts) ? String(accounts[0] ?? "") : "";
+      window.localStorage.removeItem("walletDisconnected");
       setWalletAddress(nextAddress || null);
     } finally {
       setIsConnecting(false);
     }
   }
 
+  function disconnectWallet() {
+    window.localStorage.setItem("walletDisconnected", "true");
+    setWalletAddress(null);
+  }
+
   async function signMessage(message: string) {
     const provider = window.ethereum;
     if (!provider) {
-      throw new Error("MetaMask or an EVM wallet extension was not found.");
+      throw new Error("MetaMask or a compatible EVM wallet was not found.");
     }
 
     const browserProvider = new BrowserProvider(provider);
@@ -80,6 +92,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       walletAddress,
       isConnecting,
       connectWallet,
+      disconnectWallet,
       signMessage,
     }),
     [walletAddress, isConnecting],
